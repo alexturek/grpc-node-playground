@@ -1,27 +1,25 @@
 const grpc = require('grpc');
-const protoLoader = require('@grpc/proto-loader');
+const load = require('./loadProto');
+
+function log(...messages) {
+  console.log(`${new Date().toISOString()} [server] - ${messages.join(' ')}`);
+}
+
+log('starting');
 
 function sayHello(call, callback) {
   callback(null, { message: "Hello " + call.request.name });
 }
 
-const PROTO_PATH = __dirname + '/hello.proto';
-const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
-  keepCase: true,
-  longs: String,
-  enums: String,
-  defaults: true,
-  oneofs: true
-});
+const { Greeter } = load();
 
-const protoDescriptor = grpc.loadPackageDefinition(packageDefinition);
-const { Greeter } = protoDescriptor;
-
-function sayHello(helloRequest) {
-  const { name } = helloRequest;
-  console.log(`Saying hello to ${name}`);
-  if (name === 'error') throw new Error(`what's wrong with your name`);
-  return { message: `sup ${name}` };
+function sayHello({ request }, callback) {
+  const { name } = request;
+  log(`Saying hello to ${name}`);
+  if (name === "error") {
+    return callback({ message: 'error is not a name', code: 4 });
+  }
+  callback(null, { message: `sup ${name}` });
 }
 
 function main() {
@@ -31,6 +29,7 @@ function main() {
   });
   server.bind("0.0.0.0:50051", grpc.ServerCredentials.createInsecure());
   server.start();
+  log('started');
 }
 
 main();
